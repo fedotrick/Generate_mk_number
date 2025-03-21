@@ -46,7 +46,20 @@ def save_to_database(form_number, file_path):
     conn.commit()
     conn.close()
 
+def check_duplicate_form_number(form_number):
+    """Проверка существования бланка с таким номером в базе данных"""
+    conn = sqlite3.connect('маршрутные_карты.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM маршрутные_карты WHERE Номер_бланка = ?", (form_number,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
+
 def generate_form_with_qr(template_path, output_path, form_number):
+    # Проверяем, существует ли уже бланк с таким номером
+    if check_duplicate_form_number(form_number):
+        raise ValueError(f"Бланк с номером {form_number} уже существует в базе данных")
+    
     # Открываем шаблон презентации
     prs = Presentation(template_path)
     
@@ -141,9 +154,20 @@ def generate_multiple_forms(template_path, start_number, count):
     output_dir = "Маршрутные_карты"
     os.makedirs(output_dir, exist_ok=True)
     
-    # Преобразуем начальный номер в целое число
+    # Проверяем все номера на дубликаты перед генерацией
     start_num = int(start_number)
+    duplicates = []
     
+    for i in range(count):
+        current_num = start_num + i
+        form_number = f"{current_num:06d}"
+        if check_duplicate_form_number(form_number):
+            duplicates.append(form_number)
+    
+    if duplicates:
+        return 0, [f"Следующие номера бланков уже существуют в базе данных: {', '.join(duplicates)}"]
+    
+    # Если дубликатов нет, продолжаем генерацию
     errors = []
     success_count = 0
     
