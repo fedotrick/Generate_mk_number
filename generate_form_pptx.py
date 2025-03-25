@@ -36,15 +36,18 @@ def create_database():
 
 def save_to_database(form_number, file_path):
     """Сохранение информации о созданной маршрутной карте в базу данных"""
-    conn = sqlite3.connect('маршрутные_карты.db')
-    cursor = conn.cursor()
-    date_created = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    cursor.execute(
-        "INSERT INTO маршрутные_карты (Номер_бланка, Учетный_номер, Номер_кластера, Статус, Дата_создания, Путь_к_файлу) VALUES (?, ?, ?, ?, ?, ?)",
-        (form_number, "", "", "", date_created, file_path)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        with sqlite3.connect('маршрутные_карты.db') as conn:
+            cursor = conn.cursor()
+            date_created = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cursor.execute(
+                "INSERT INTO маршрутные_карты (Номер_бланка, Учетный_номер, Номер_кластера, Статус, Дата_создания, Путь_к_файлу) VALUES (?, ?, ?, ?, ?, ?)",
+                (form_number, "", "", "", date_created, file_path)
+            )
+            conn.commit()
+    except sqlite3.Error as e:
+        print(f"Ошибка при сохранении в базу данных: {e}")
+        raise
 
 def check_duplicate_form_number(form_number):
     """Проверка существования бланка с таким номером в базе данных"""
@@ -56,107 +59,111 @@ def check_duplicate_form_number(form_number):
     return count > 0
 
 def generate_form_with_qr(template_path, output_path, form_number):
-    # Проверяем, существует ли уже бланк с таким номером
-    if check_duplicate_form_number(form_number):
-        raise ValueError(f"Бланк с номером {form_number} уже существует в базе данных")
-    
-    # Открываем шаблон презентации
-    prs = Presentation(template_path)
-    
-    # Создаем QR-код с номером формы
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=1,
-    )
-    qr.add_data(form_number)
-    qr.make(fit=True)
-    qr_image = qr.make_image(fill_color="black", back_color="white")
-    
-    # Сохраняем QR-код во временный буфер
-    image_stream = BytesIO()
-    qr_image.save(image_stream, format='PNG')
-    image_stream.seek(0)
-    
-    # Добавляем QR-код на первый слайд
-    slide = prs.slides[0]
-    
-    # Ищем текст "МАРШРУТНАЯ КАРТА"
-    target_text = "МАРШРУТНАЯ КАРТА"
-    text_shape = None
-    
-    for shape in slide.shapes:
-        if hasattr(shape, "text") and target_text in shape.text:
-            text_shape = shape
-            break
-    
-    # Задаем размеры QR-кода
-    qr_width = 500000  # ~0.5 см
-    qr_height = 500000
-    
-    if text_shape:
-        # Располагаем QR-код слева от текста на том же уровне
-        left = max(300000, text_shape.left - qr_width - 200000)  # отступ от текста ~0.2 см, но не меньше 300000
+    try:
+        # Проверяем, существует ли уже бланк с таким номером
+        if check_duplicate_form_number(form_number):
+            raise ValueError(f"Бланк с номером {form_number} уже существует в базе данных")
         
-        # Выравниваем по вертикали с текстом
-        top = text_shape.top + (text_shape.height - qr_height) / 2
+        # Открываем шаблон презентации
+        prs = Presentation(template_path)
         
-        # Добавляем QR-код на слайд
-        slide.shapes.add_picture(
-            image_stream,
-            left,
-            top,
-            width=qr_width,
-            height=qr_height
+        # Создаем QR-код с номером формы
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=1,
         )
+        qr.add_data(form_number)
+        qr.make(fit=True)
+        qr_image = qr.make_image(fill_color="black", back_color="white")
         
-        # Добавляем номер в правый верхний угол слайда
-        slide_width = prs.slide_width
-        number_shape = slide.shapes.add_textbox(
-            slide_width - 1500000,  # отступ от правого края
-            200000,  # отступ от верхнего края
-            1200000,  # ширина текстового поля
-            300000  # высота текстового поля
-        )
-        text_frame = number_shape.text_frame
-        p = text_frame.paragraphs[0]
-        p.text = f"№ {form_number}"
-        p.alignment = 2  # выравнивание по правому краю
+        # Сохраняем QR-код во временный буфер
+        image_stream = BytesIO()
+        qr_image.save(image_stream, format='PNG')
+        image_stream.seek(0)
         
-    else:
-        # Если текст не найден, используем позицию по умолчанию
-        left = 300000  # отступ от левого края
-        top = 300000  # отступ от верхнего края
+        # Добавляем QR-код на первый слайд
+        slide = prs.slides[0]
         
-        # Добавляем QR-код на слайд
-        slide.shapes.add_picture(
-            image_stream,
-            left,
-            top,
-            width=qr_width,
-            height=qr_height
-        )
+        # Ищем текст "МАРШРУТНАЯ КАРТА"
+        target_text = "МАРШРУТНАЯ КАРТА"
+        text_shape = None
         
-        # Добавляем номер в правый верхний угол
-        slide_width = prs.slide_width
-        number_shape = slide.shapes.add_textbox(
-            slide_width - 1500000,  # отступ от правого края
-            200000,  # отступ от верхнего края
-            1200000,  # ширина текстового поля
-            300000  # высота текстового поля
-        )
-        text_frame = number_shape.text_frame
-        p = text_frame.paragraphs[0]
-        p.text = f"№ {form_number}"
-        p.alignment = 2  # выравнивание по правому краю
-    
-    # Сохраняем результат
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    prs.save(output_path)
-    
-    # Сохраняем информацию в базу данных
-    save_to_database(form_number, output_path)
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and target_text in shape.text:
+                text_shape = shape
+                break
+        
+        # Задаем размеры QR-кода
+        qr_width = 500000  # ~0.5 см
+        qr_height = 500000
+        
+        if text_shape:
+            # Располагаем QR-код слева от текста на том же уровне
+            left = max(300000, text_shape.left - qr_width - 200000)  # отступ от текста ~0.2 см, но не меньше 300000
+            
+            # Выравниваем по вертикали с текстом
+            top = text_shape.top + (text_shape.height - qr_height) / 2
+            
+            # Добавляем QR-код на слайд
+            slide.shapes.add_picture(
+                image_stream,
+                left,
+                top,
+                width=qr_width,
+                height=qr_height
+            )
+            
+            # Добавляем номер в правый верхний угол слайда
+            slide_width = prs.slide_width
+            number_shape = slide.shapes.add_textbox(
+                slide_width - 1500000,  # отступ от правого края
+                200000,  # отступ от верхнего края
+                1200000,  # ширина текстового поля
+                300000  # высота текстового поля
+            )
+            text_frame = number_shape.text_frame
+            p = text_frame.paragraphs[0]
+            p.text = f"№ {form_number}"
+            p.alignment = 2  # выравнивание по правому краю
+            
+        else:
+            # Если текст не найден, используем позицию по умолчанию
+            left = 300000  # отступ от левого края
+            top = 300000  # отступ от верхнего края
+            
+            # Добавляем QR-код на слайд
+            slide.shapes.add_picture(
+                image_stream,
+                left,
+                top,
+                width=qr_width,
+                height=qr_height
+            )
+            
+            # Добавляем номер в правый верхний угол
+            slide_width = prs.slide_width
+            number_shape = slide.shapes.add_textbox(
+                slide_width - 1500000,  # отступ от правого края
+                200000,  # отступ от верхнего края
+                1200000,  # ширина текстового поля
+                300000  # высота текстового поля
+            )
+            text_frame = number_shape.text_frame
+            p = text_frame.paragraphs[0]
+            p.text = f"№ {form_number}"
+            p.alignment = 2  # выравнивание по правому краю
+        
+        # Сохраняем результат
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        prs.save(output_path)
+        
+        # Сохраняем информацию в базу данных
+        save_to_database(form_number, output_path)
+    except Exception as e:
+        print(f"Ошибка при генерации формы: {e}")
+        raise
 
 def generate_multiple_forms(template_path, start_number, count):
     """Генерация нескольких маршрутных карт"""
