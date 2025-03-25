@@ -92,12 +92,13 @@ def generate_form_with_qr(template_path, output_path, form_number):
             break
     
     # Задаем размеры QR-кода
-    qr_width = 400000  # ~0.4 см
-    qr_height = 400000
+    qr_width = 500000  # ~0.5 см
+    qr_height = 500000
     
     if text_shape:
         # Располагаем QR-код слева от текста на том же уровне
-        left = text_shape.left - qr_width - 200000  # отступ от текста ~0.2 см
+        left = max(300000, text_shape.left - qr_width - 200000)  # отступ от текста ~0.2 см, но не меньше 300000
+        
         # Выравниваем по вертикали с текстом
         top = text_shape.top + (text_shape.height - qr_height) / 2
         
@@ -110,20 +111,25 @@ def generate_form_with_qr(template_path, output_path, form_number):
             height=qr_height
         )
         
-        # Добавляем номер справа от текста
-        right = text_shape.left + text_shape.width + 200000
+        # Добавляем номер в правый верхний угол слайда
+        slide_width = prs.slide_width
         number_shape = slide.shapes.add_textbox(
-            right,
-            text_shape.top,
-            1000000,  # ширина текстового поля
-            text_shape.height
+            slide_width - 1500000,  # отступ от правого края
+            200000,  # отступ от верхнего края
+            1200000,  # ширина текстового поля
+            300000  # высота текстового поля
         )
-        number_shape.text = f"№ {form_number}"
+        text_frame = number_shape.text_frame
+        p = text_frame.paragraphs[0]
+        p.text = f"№ {form_number}"
+        p.alignment = 2  # выравнивание по правому краю
         
     else:
-        # Если текст не найден, используем позицию по умолчанию (левый верхний угол)
-        left = 200000  # отступ от края
-        top = 200000
+        # Если текст не найден, используем позицию по умолчанию
+        left = 300000  # отступ от левого края
+        top = 300000  # отступ от верхнего края
+        
+        # Добавляем QR-код на слайд
         slide.shapes.add_picture(
             image_stream,
             left,
@@ -132,14 +138,18 @@ def generate_form_with_qr(template_path, output_path, form_number):
             height=qr_height
         )
         
-        # Добавляем номер под QR-кодом
+        # Добавляем номер в правый верхний угол
+        slide_width = prs.slide_width
         number_shape = slide.shapes.add_textbox(
-            left,
-            top + qr_height + 100000,  # под QR-кодом
-            1000000,  # ширина текстового поля
-            200000  # высота текстового поля
+            slide_width - 1500000,  # отступ от правого края
+            200000,  # отступ от верхнего края
+            1200000,  # ширина текстового поля
+            300000  # высота текстового поля
         )
-        number_shape.text = f"№ {form_number}"
+        text_frame = number_shape.text_frame
+        p = text_frame.paragraphs[0]
+        p.text = f"№ {form_number}"
+        p.alignment = 2  # выравнивание по правому краю
     
     # Сохраняем результат
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
