@@ -42,7 +42,7 @@ def save_to_database(form_number, file_path):
             date_created = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cursor.execute(
                 "INSERT INTO маршрутные_карты (Номер_бланка, Учетный_номер, Номер_кластера, Статус, Дата_создания, Путь_к_файлу) VALUES (?, ?, ?, ?, ?, ?)",
-                (form_number, "", "", "", date_created, file_path)
+                (form_number, None, None, None, date_created, file_path)
             )
             conn.commit()
     except sqlite3.Error as e:
@@ -378,7 +378,22 @@ class FormGeneratorApp(App):
         Window.minimum_height = 400
         return FormGeneratorUI()
 
+def update_empty_to_null():
+    """Обновление пустых значений на NULL в существующей базе данных"""
+    try:
+        with sqlite3.connect('маршрутные_карты.db') as conn:
+            cursor = conn.cursor()
+            # Выполняем каждое обновление отдельно
+            cursor.execute("UPDATE маршрутные_карты SET Учетный_номер = NULL WHERE Учетный_номер = ''")
+            cursor.execute("UPDATE маршрутные_карты SET Номер_кластера = NULL WHERE Номер_кластера = ''")
+            cursor.execute("UPDATE маршрутные_карты SET Статус = NULL WHERE Статус = ''")
+            conn.commit()
+    except sqlite3.Error as e:
+        print(f"Ошибка при обновлении базы данных: {e}")
+        raise
+
 def main():
+    update_empty_to_null()  # Добавьте эту строку перед запуском приложения
     FormGeneratorApp().run()
 
 if __name__ == "__main__":
