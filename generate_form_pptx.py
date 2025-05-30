@@ -393,8 +393,13 @@ def update_empty_to_null():
         raise
 
 def main():
-    update_empty_to_null()  # Добавьте эту строку перед запуском приложения
+    create_database()  # Сначала создаем таблицу
+    try:
+        update_empty_to_null()  # Затем пытаемся обновить значения
+    except sqlite3.Error as e:
+        print(f"Предупреждение при обновлении базы данных: {e}")
+        # Продолжаем выполнение даже при ошибке
     FormGeneratorApp().run()
 
 if __name__ == "__main__":
-    main() 
+    main()
