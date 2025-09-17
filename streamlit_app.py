@@ -34,10 +34,11 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stApp {
-        background-color: #f0f2f6;
+        background-color: #2c3e50;
+        color: #ecf0f1;
     }
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3498db 0%, #8e44ad 100%);
         padding: 2rem;
         border-radius: 10px;
         margin-bottom: 2rem;
@@ -50,18 +51,19 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         white-space: pre-wrap;
-        background-color: #f0f2f6;
+        background-color: #34495e;
         border-radius: 8px 8px 0 0;
         gap: 1px;
         padding-top: 10px;
         padding-bottom: 10px;
+        color: #ecf0f1;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #667eea;
+        background-color: #3498db;
         color: white;
     }
     .generate-button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #3498db 0%, #8e44ad 100%);
         border: none;
         color: white;
         padding: 15px 32px;
@@ -79,32 +81,62 @@ st.markdown("""
         box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
     .info-card {
-        background-color: white;
+        background-color: #34495e;
         padding: 20px;
         border-radius: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         margin-bottom: 20px;
+        color: #ecf0f1;
     }
     .success-box {
-        background-color: #d4edda;
-        border-left: 5px solid #28a745;
+        background-color: #27ae60;
+        border-left: 5px solid #2ecc71;
         padding: 15px;
         border-radius: 5px;
         margin: 10px 0;
+        color: #ecf0f1;
     }
     .error-box {
-        background-color: #f8d7da;
-        border-left: 5px solid #dc3545;
+        background-color: #c0392b;
+        border-left: 5px solid #e74c3c;
         padding: 15px;
         border-radius: 5px;
         margin: 10px 0;
+        color: #ecf0f1;
     }
     .warning-box {
-        background-color: #fff3cd;
-        border-left: 5px solid #ffc107;
+        background-color: #d35400;
+        border-left: 5px solid #f39c12;
         padding: 15px;
         border-radius: 5px;
         margin: 10px 0;
+        color: #ecf0f1;
+    }
+    .input-label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        display: block;
+        color: #ecf0f1;
+        font-size: 16px;
+    }
+    .input-container {
+        margin-bottom: 20px;
+    }
+    .stTextInput > div > div > input {
+        background-color: #34495e !important;
+        color: #ecf0f1 !important;
+        border: 1px solid #3498db !important;
+    }
+    .stNumberInput > div > div > input {
+        background-color: #34495e !important;
+        color: #ecf0f1 !important;
+        border: 1px solid #3498db !important;
+    }
+    h1, h2, h3 {
+        color: #ecf0f1;
+    }
+    .stMarkdown {
+        color: #ecf0f1;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -125,16 +157,19 @@ with tab1:
     st.markdown("<div class='info-card'><h3>Информация</h3><p>Следующий доступный номер маршрутной карты: <strong>" + next_form_number + "</strong></p></div>", unsafe_allow_html=True)
     
     # Input for form number with suggestion
-    form_number = st.text_input("Номер маршрутной карты", value=next_form_number, help="Введите номер маршрутной карты или используйте предложенный")
+    st.markdown("<div class='input-container'><span class='input-label'>Номер маршрутной карты</span></div>", unsafe_allow_html=True)
+    form_number = st.text_input("Номер маршрутной карты", value=next_form_number, key="single_form_number", label_visibility="visible")
     
     # Template file
-    template_path = st.text_input("Путь к шаблону PowerPoint", value="ШАБЛОН.pptx", help="Укажите путь к файлу шаблона PowerPoint")
+    st.markdown("<div class='input-container'><span class='input-label'>Путь к шаблону PowerPoint</span></div>", unsafe_allow_html=True)
+    template_path = st.text_input("Путь к шаблону PowerPoint", value="ШАБЛОН.pptx", key="single_template_path", label_visibility="visible")
     
     # Output directory
-    output_dir = st.text_input("Директория для сохранения файлов", value="Маршрутные_карты", help="Укажите директорию для сохранения сгенерированных файлов")
+    st.markdown("<div class='input-container'><span class='input-label'>Папка для сохранения файлов</span></div>", unsafe_allow_html=True)
+    output_dir = st.text_input("Папка для сохранения файлов", value="Маршрутные_карты", key="single_output_dir", label_visibility="visible")
     
     # Generate button with custom styling
-    if st.button("Создать маршрутную карту", key="single_generate"):
+    if st.button("Создать маршрутную карту", key="single_generate", use_container_width=True):
         if not os.path.exists(template_path):
             st.markdown("<div class='error-box'>❌ Файл шаблона '" + template_path + "' не найден!</div>", unsafe_allow_html=True)
         else:
@@ -169,19 +204,23 @@ with tab2:
     st.markdown("<div class='info-card'><h3>Информация</h3><p>Следующий доступный номер маршрутной карты: <strong>" + next_form_number + "</strong></p></div>", unsafe_allow_html=True)
     
     # Starting number with suggestion
-    start_number = st.text_input("Начальный номер", value=next_form_number, help="Введите начальный номер для генерации нескольких карт")
+    st.markdown("<div class='input-container'><span class='input-label'>Начальный номер</span></div>", unsafe_allow_html=True)
+    start_number = st.text_input("Начальный номер", value=next_form_number, key="multiple_start_number", label_visibility="visible")
     
     # Count
-    count = st.number_input("Количество карт", min_value=1, max_value=1000, value=10, help="Укажите количество маршрутных карт для генерации")
+    st.markdown("<div class='input-container'><span class='input-label'>Количество карт</span></div>", unsafe_allow_html=True)
+    count = st.number_input("Количество карт", min_value=1, max_value=1000, value=10, key="multiple_count", label_visibility="visible")
     
     # Template file
-    template_path_multi = st.text_input("Путь к шаблону PowerPoint (множественная генерация)", value="ШАБЛОН.pptx", help="Укажите путь к файлу шаблона PowerPoint")
+    st.markdown("<div class='input-container'><span class='input-label'>Путь к шаблону PowerPoint</span></div>", unsafe_allow_html=True)
+    template_path_multi = st.text_input("Путь к шаблону PowerPoint (множественная генерация)", value="ШАБЛОН.pptx", key="multiple_template_path", label_visibility="visible")
     
     # Output directory
-    output_dir_multi = st.text_input("Директория для сохранения файлов (множественная генерация)", value="Маршрутные_карты", help="Укажите директорию для сохранения сгенерированных файлов")
+    st.markdown("<div class='input-container'><span class='input-label'>Папка для сохранения файлов</span></div>", unsafe_allow_html=True)
+    output_dir_multi = st.text_input("Папка для сохранения файлов (множественная генерация)", value="Маршрутные_карты", key="multiple_output_dir", label_visibility="visible")
     
     # Generate button with custom styling
-    if st.button("Создать маршрутные карты", key="multiple_generate"):
+    if st.button("Создать маршрутные карты", key="multiple_generate", use_container_width=True):
         if not os.path.exists(template_path_multi):
             st.markdown("<div class='error-box'>❌ Файл шаблона '" + template_path_multi + "' не найден!</div>", unsafe_allow_html=True)
         else:
@@ -219,8 +258,12 @@ with st.sidebar:
         import openpyxl
         wb = openpyxl.load_workbook('маршрутные_карты.xlsx')
         ws = wb.active
-        row_count = ws.max_row - 1 if ws.max_row > 1 else 0  # Subtract 1 for header row
-        st.write(f"Всего создано карт: {row_count}")
+        if ws is not None:
+            max_row = ws.max_row if ws.max_row is not None else 0
+            row_count = max_row - 1 if max_row > 1 else 0  # Subtract 1 for header row
+            st.write(f"Всего создано карт: {row_count}")
+        else:
+            st.write("Всего создано карт: 0")
         wb.close()
     except:
         st.write("Всего создано карт: 0")
