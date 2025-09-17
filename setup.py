@@ -3,7 +3,7 @@ from cx_Freeze import setup, Executable
 
 # Зависимости
 build_exe_options = {
-    "packages": ["os", "qrcode", "pptx", "sqlite3", "kivy", "datetime"],
+    "packages": ["os", "qrcode", "pptx", "openpyxl", "kivy", "datetime"],
     "excludes": [],
     "include_files": [
         ("ШАБЛОН.pptx", "ШАБЛОН.pptx"), 
