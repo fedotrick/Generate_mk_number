@@ -252,6 +252,48 @@ def update_empty_to_null():
         print(f"Ошибка при обновлении Excel файла: {e}")
         raise
 
+def get_next_form_number():
+    """Получение следующего доступного номера маршрутной карты"""
+    excel_file = 'маршрутные_карты.xlsx'
+    
+    # Если файл не существует, возвращаем начальный номер
+    if not os.path.exists(excel_file):
+        return "000001"
+    
+    try:
+        wb = load_workbook(excel_file)
+        ws = wb.active
+        
+        # Если нет данных, возвращаем начальный номер
+        if ws.max_row <= 1:
+            return "000001"
+        
+        # Получаем все номера бланков
+        form_numbers = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if row[1] is not None:  # row[1] соответствует столбцу 'Номер_бланка'
+                form_numbers.append(row[1])
+        
+        # Если нет номеров, возвращаем начальный
+        if not form_numbers:
+            return "000001"
+        
+        # Находим максимальный номер и добавляем 1
+        max_number = 0
+        for form_number in form_numbers:
+            try:
+                num = int(form_number)
+                max_number = max(max_number, num)
+            except ValueError:
+                # Если не удалось преобразовать в число, пропускаем
+                continue
+        
+        next_number = max_number + 1
+        return f"{next_number:06d}"
+    except Exception as e:
+        print(f"Ошибка при получении следующего номера: {e}")
+        return "000001"
+
 def main():
     create_database()  # Сначала создаем таблицу
     try:
