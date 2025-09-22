@@ -1,6 +1,10 @@
 python-pptx==0.6.21
 qrcode==7.4.2
-streamlit==1.27.2
-pillow==10.1.0
+streamlit
+Pillow>=10.2.0
+numpy
 openpyxl==3.1.2
-cx_Freeze==6.15.12
+google-api-python-client==2.70.0
+google-auth==2.15.0
+google-auth-oauthlib==0.8.0
+google-auth-httplib2==0.1.0

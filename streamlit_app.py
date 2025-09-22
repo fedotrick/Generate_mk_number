@@ -5,88 +5,15 @@ from pptx import Presentation
 import qrcode
 from io import BytesIO
 import datetime
-from openpyxl import Workbook, load_workbook
+from PIL import Image
 
 # Add the current directory to the path so we can import our modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Импортируем модуль для работы с Google Sheets
+from google_sheets_utils import save_to_google_sheets, check_duplicate_form_number, get_next_form_number, get_sheet_statistics
+
 # Core functions moved from generate_form_pptx_core.py
-
-def create_database():
-    """Создание Excel файла, если он не существует"""
-    excel_file = 'маршрутные_карты.xlsx'
-    if not os.path.exists(excel_file):
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Маршрутные карты"
-        
-        # Создаем заголовки столбцов
-        headers = ['id', 'Номер_бланка', 'Учетный_номер', 'Номер_кластера', 'Статус', 'Дата_создания', 'Путь_к_файлу']
-        for col_num, header in enumerate(headers, 1):
-            ws.cell(row=1, column=col_num, value=header)
-        
-        # Сохраняем файл
-        wb.save(excel_file)
-
-def save_to_database(form_number, file_path):
-    """Сохранение информации о созданной маршрутной карте в Excel файл"""
-    try:
-        excel_file = 'маршрутные_карты.xlsx'
-        
-        # Загружаем существующий файл или создаем новый
-        if os.path.exists(excel_file):
-            wb = load_workbook(excel_file)
-            ws = wb.active
-        else:
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "Маршрутные карты"
-            
-            # Создаем заголовки столбцов
-            headers = ['id', 'Номер_бланка', 'Учетный_номер', 'Номер_кластера', 'Статус', 'Дата_создания', 'Путь_к_файлу']
-            for col_num, header in enumerate(headers, 1):
-                ws.cell(row=1, column=col_num, value=header)
-        
-        # Определяем следующий ID
-        max_id = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[0] is not None:
-                max_id = max(max_id, row[0])
-        
-        next_id = max_id + 1
-        date_created = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Добавляем новую строку с данными
-        new_row = [next_id, form_number, None, None, None, date_created, file_path]
-        ws.append(new_row)
-        
-        # Сохраняем файл
-        wb.save(excel_file)
-    except Exception as e:
-        print(f"Ошибка при сохранении в Excel файл: {e}")
-        raise
-
-def check_duplicate_form_number(form_number):
-    """Проверка существования бланка с таким номером в Excel файле"""
-    excel_file = 'маршрутные_карты.xlsx'
-    
-    # Если файл не существует, дубликатов нет
-    if not os.path.exists(excel_file):
-        return False
-    
-    try:
-        wb = load_workbook(excel_file)
-        ws = wb.active
-        
-        # Проверяем каждую строку, начиная со второй (первая - заголовки)
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[1] == form_number:  # row[1] соответствует столбцу 'Номер_бланка'
-                return True
-        
-        return False
-    except Exception as e:
-        print(f"Ошибка при проверке дубликатов в Excel файле: {e}")
-        return False
 
 def generate_form_with_qr(template_path, output_path, form_number):
     try:
@@ -100,7 +27,7 @@ def generate_form_with_qr(template_path, output_path, form_number):
         # Создаем QR-код с номером формы
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            error_correction=qrcode.ERROR_CORRECT_L,
             box_size=10,
             border=1,
         )
@@ -110,7 +37,7 @@ def generate_form_with_qr(template_path, output_path, form_number):
         
         # Сохраняем QR-код во временный буфер
         image_stream = BytesIO()
-        qr_image.save(image_stream, format='PNG')
+        qr_image.save(image_stream, 'PNG')
         image_stream.seek(0)
         
         # Добавляем QR-код на первый слайд
@@ -189,8 +116,8 @@ def generate_form_with_qr(template_path, output_path, form_number):
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         prs.save(output_path)
         
-        # Сохраняем информацию в Excel файл
-        save_to_database(form_number, output_path)
+        # Сохраняем информацию в Google Sheets
+        save_to_google_sheets(form_number, output_path)
     except Exception as e:
         print(f"Ошибка при генерации формы: {e}")
         raise
@@ -232,81 +159,8 @@ def generate_multiple_forms(template_path, start_number, count):
     
     return success_count, errors
 
-def update_empty_to_null():
-    """Обновление пустых значений на NULL в существующем Excel файле"""
-    excel_file = 'маршрутные_карты.xlsx'
-    
-    # Если файл не существует, ничего не делаем
-    if not os.path.exists(excel_file):
-        return
-    
-    try:
-        wb = load_workbook(excel_file)
-        ws = wb.active
-        
-        # Проходим по всем строкам, начиная со второй (первая - заголовки)
-        for row_num in range(2, ws.max_row + 1):
-            # Проверяем столбцы: Учетный_номер (C), Номер_кластера (D), Статус (E)
-            # В Excel: C=3, D=4, E=5
-            for col_num in [3, 4, 5]:
-                cell_value = ws.cell(row=row_num, column=col_num).value
-                if cell_value == "":
-                    ws.cell(row=row_num, column=col_num).value = None
-        
-        # Сохраняем изменения
-        wb.save(excel_file)
-    except Exception as e:
-        print(f"Ошибка при обновлении Excel файла: {e}")
-        raise
-
-def get_next_form_number():
-    """Получение следующего доступного номера маршрутной карты"""
-    excel_file = 'маршрутные_карты.xlsx'
-    
-    # Если файл не существует, возвращаем начальный номер
-    if not os.path.exists(excel_file):
-        return "000001"
-    
-    try:
-        wb = load_workbook(excel_file)
-        ws = wb.active
-        
-        # Если нет данных, возвращаем начальный номер
-        if ws.max_row <= 1:
-            return "000001"
-        
-        # Получаем все номера бланков
-        form_numbers = []
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row[1] is not None:  # row[1] соответствует столбцу 'Номер_бланка'
-                form_numbers.append(row[1])
-        
-        # Если нет номеров, возвращаем начальный
-        if not form_numbers:
-            return "000001"
-        
-        # Находим максимальный номер и добавляем 1
-        max_number = 0
-        for form_number in form_numbers:
-            try:
-                num = int(form_number)
-                max_number = max(max_number, num)
-            except ValueError:
-                # Если не удалось преобразовать в число, пропускаем
-                continue
-        
-        next_number = max_number + 1
-        return f"{next_number:06d}"
-    except Exception as e:
-        print(f"Ошибка при получении следующего номера: {e}")
-        return "000001"
-
-# Initialize the database
-create_database()
-try:
-    update_empty_to_null()
-except Exception as e:
-    st.warning(f"Предупреждение при обновлении базы данных: {e}")
+# Get the next form number to suggest
+next_form_number = get_next_form_number()
 
 # Set page config for a more modern look
 st.set_page_config(
@@ -430,9 +284,6 @@ st.markdown("""
 # Main header
 st.markdown("<div class='main-header'><h1>📋 Генератор маршрутных карт</h1><p>Создание маршрутных карт в формате PowerPoint с QR-кодами</p></div>", unsafe_allow_html=True)
 
-# Get the next form number to suggest
-next_form_number = get_next_form_number()
-
 # Create tabs for single and multiple form generation
 tab1, tab2 = st.tabs(["Один бланк", "Несколько бланков"])
 
@@ -540,16 +391,30 @@ with st.sidebar:
     st.write("4. Нажмите кнопку 'Создать'")
     
     st.subheader("📊 Статистика")
-    try:
-        import openpyxl
-        wb = openpyxl.load_workbook('маршрутные_карты.xlsx')
-        ws = wb.active
-        if ws is not None:
-            max_row = ws.max_row if ws.max_row is not None else 0
-            row_count = max_row - 1 if max_row > 1 else 0  # Subtract 1 for header row
-            st.write(f"Всего создано карт: {row_count}")
-        else:
-            st.write("Всего создано карт: 0")
-        wb.close()
-    except:
-        st.write("Всего создано карт: 0")
+    with st.spinner("Загрузка статистики..."):
+        try:
+            stats = get_sheet_statistics()
+            if stats:
+                st.success(f"Всего карт: **{stats['total']}**")
+                
+                st.write("По статусам:")
+                # Using a more robust way to display statuses
+                status_dict = stats.get('statuses', {})
+                if not status_dict:
+                    st.write("Нет данных о статусах.")
+                else:
+                    # Create a neat layout for statuses
+                    # Check if the number of statuses is not too large for columns
+                    if len(status_dict) <= 5: # Arbitrary limit for using columns
+                        cols = st.columns(len(status_dict))
+                        for i, (status, count) in enumerate(status_dict.items()):
+                            with cols[i]:
+                                st.metric(label=status, value=count)
+                    else:
+                        for status, count in status_dict.items():
+                            st.metric(label=status, value=count)
+            else:
+                st.warning("Не удалось загрузить статистику.")
+        except Exception as e:
+            st.error("Ошибка при загрузке статистики:")
+            st.exception(e)
